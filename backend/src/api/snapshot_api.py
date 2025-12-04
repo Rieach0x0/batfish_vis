@@ -174,6 +174,14 @@ async def create_snapshot(
             }
         )
 
+        # Cleanup temporary directory after successful upload to Batfish
+        # The snapshot is now stored in Batfish, so we don't need the temp files
+        file_service.cleanup_snapshot_dir(snapshotName)
+        logger.info(
+            "Temporary files cleaned up",
+            extra={"snapshot": snapshotName}
+        )
+
         return snapshot
 
     except HTTPException:
