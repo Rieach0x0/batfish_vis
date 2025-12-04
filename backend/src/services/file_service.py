@@ -110,6 +110,11 @@ class FileService:
 
         snapshot_dir.mkdir(parents=True, exist_ok=True)
 
+        # Create configs subdirectory (required by Batfish)
+        # Batfish expects: snapshot_name/configs/ directory structure
+        configs_dir = snapshot_dir / "configs"
+        configs_dir.mkdir(parents=True, exist_ok=True)
+
         logger.info(
             "Saving uploaded files",
             extra={
@@ -150,12 +155,12 @@ class FileService:
                         f"({self.MAX_TOTAL_SIZE_MB} MB). Current total: {total_size / 1024 / 1024:.2f} MB"
                     )
 
-                # Save file to snapshot directory
-                file_path = snapshot_dir / sanitized_filename
+                # Save file to configs subdirectory
+                file_path = configs_dir / sanitized_filename
 
-                # Security: Ensure file_path is within snapshot_dir
+                # Security: Ensure file_path is within configs_dir
                 file_path_resolved = file_path.resolve()
-                if not str(file_path_resolved).startswith(str(snapshot_dir)):
+                if not str(file_path_resolved).startswith(str(configs_dir)):
                     raise ValueError(f"Invalid file path: path traversal detected")
 
                 with open(file_path, "wb") as f:
@@ -221,13 +226,13 @@ class FileService:
             snapshot_name: Snapshot name
 
         Returns:
-            Number of files in snapshot directory
+            Number of files in snapshot configs directory
         """
-        snapshot_dir = self.temp_dir / snapshot_name
-        if not snapshot_dir.exists():
+        configs_dir = self.temp_dir / snapshot_name / "configs"
+        if not configs_dir.exists():
             return 0
 
-        file_count = len([f for f in snapshot_dir.iterdir() if f.is_file()])
+        file_count = len([f for f in configs_dir.iterdir() if f.is_file()])
         logger.debug(
             "Counted uploaded files",
             extra={"snapshot": snapshot_name, "file_count": file_count}
