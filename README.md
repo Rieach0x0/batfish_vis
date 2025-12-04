@@ -69,6 +69,28 @@ batfish_visは、Batfishを活用してネットワークトポロジーをイ�
 
 ### 0. WSL2とDocker Desktopのセットアップ
 
+#### セットアップ状態の確認（推奨）
+
+まず、環境が正しくセットアップされているか確認できます：
+
+**WSL Ubuntuターミナルで**:
+```bash
+# チェックスクリプトに実行権限を付与
+chmod +x /mnt/d/batfish_vis/check_wsl_setup.sh
+
+# セットアップ状態をチェック
+/mnt/d/batfish_vis/check_wsl_setup.sh
+```
+
+このスクリプトは以下を確認します：
+- Docker、Python 3.11のインストール状況
+- プロジェクトディレクトリの存在
+- 仮想環境と依存関係のインストール状況
+- Batfishコンテナの稼働状況
+- ネットワークポートの状態
+
+問題があれば、修正手順が表示されます。
+
 #### WSL2のインストール（未インストールの場合）
 
 PowerShellを**管理者権限**で開き実行:
@@ -117,30 +139,64 @@ docker logs batfish | grep "Listening on"
 
 **重要**: WSL2からWindowsのD:ドライブ経由でプロジェクトにアクセスします。
 
-WSL Ubuntuターミナルで:
+#### ステップ1: Python環境の準備
+
+WSL Ubuntuターミナルを開き、以下を実行:
 
 ```bash
 # Windowsのプロジェクトディレクトリに移動
 cd /mnt/d/batfish_vis/backend
 
 # Python 3.11のインストール（未インストールの場合）
+sudo apt update
+sudo apt install -y software-properties-common
 sudo add-apt-repository -y ppa:deadsnakes/ppa
 sudo apt update
 sudo apt install -y python3.11 python3.11-venv python3.11-dev
 
-# uv（Python環境管理ツール）のインストール（推奨）
-curl -LsSf https://astral.sh/uv/install.sh | sh
-source $HOME/.cargo/env
+# Pythonバージョン確認
+python3.11 --version
+# 出力例: Python 3.11.7
+```
 
+#### ステップ2: 仮想環境の作成とアクティブ化
+
+```bash
 # 仮想環境の作成
 python3.11 -m venv .venv
 
 # 仮想環境の有効化
 source .venv/bin/activate
 
+# アクティブ化されたことを確認（プロンプトに(.venv)が表示される）
+# 例: (.venv) user@hostname:/mnt/d/batfish_vis/backend$
+
+# Pythonパスの確認
+which python
+# 出力例: /mnt/d/batfish_vis/backend/.venv/bin/python
+```
+
+**重要**: プロンプトに `(.venv)` が表示されていることを必ず確認してください！
+
+#### ステップ3: 依存関係のインストール
+
+```bash
+# pipのアップグレード
+pip install --upgrade pip setuptools wheel
+
 # 依存関係のインストール
 pip install -r requirements.txt
 
+# uvicornがインストールされたか確認
+which uvicorn
+# 出力例: /mnt/d/batfish_vis/backend/.venv/bin/uvicorn
+
+pip show uvicorn fastapi
+```
+
+#### ステップ4: 環境変数の設定
+
+```bash
 # .envファイルの作成
 cat > .env << 'EOF'
 BATFISH_HOST=localhost
@@ -148,17 +204,63 @@ BATFISH_PORT=9996
 LOG_LEVEL=INFO
 EOF
 
+# .envファイルの確認
+cat .env
+```
+
+#### ステップ5: バックエンドサーバーの起動
+
+```bash
 # バックエンドサーバーの起動
 PYTHONPATH=$PWD uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
+
+# 正常に起動すると以下のようなログが表示されます：
+# INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+# INFO:     Started reloader process
+# INFO:     Started server process
+# INFO:     Waiting for application startup.
+# INFO:     Application startup complete.
 ```
 
 バックエンドのアクセス先: http://localhost:8000
 
 APIドキュメント: http://localhost:8000/docs
 
+#### トラブルシューティング
+
+**エラー: `python3: can't open file '/mnt/d/batfish_vis/backend/uvicorn'`**
+
+原因: 仮想環境がアクティブになっていない
+
+解決方法:
+```bash
+# 仮想環境を再度アクティブ化
+cd /mnt/d/batfish_vis/backend
+source .venv/bin/activate
+
+# プロンプトに(.venv)が表示されることを確認
+```
+
+**エラー: `ModuleNotFoundError: No module named 'fastapi'`**
+
+原因: 依存関係がインストールされていない
+
+解決方法:
+```bash
+pip install -r requirements.txt
+```
+
+**次回以降の起動手順（簡易版）**:
+```bash
+cd /mnt/d/batfish_vis/backend
+source .venv/bin/activate
+PYTHONPATH=$PWD uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
+```
+
 **ポイント**:
 - WSL2とWindows間のネットワークは自動でブリッジされるため、WindowsブラウザからWSL2のlocalhost:8000にアクセス可能
 - ファイル変更はWindows側（D:\batfish_vis）で行い、WSL2側（/mnt/d/batfish_vis）から実行
+- 毎回 `source .venv/bin/activate` で仮想環境をアクティブ化する必要があります
 
 ### 3. フロントエンドのセットアップ（Windows）
 
