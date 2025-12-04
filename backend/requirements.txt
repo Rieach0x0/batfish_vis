@@ -1,0 +1,23 @@
+# Core framework
+fastapi==0.109.0
+uvicorn[standard]==0.25.0
+
+# Batfish integration
+pybatfish==2025.7.7.2423
+
+# Python utilities
+python-multipart==0.0.6
+pydantic==2.5.0
+pydantic-settings==2.1.0
+requests==2.31.0
+
+# Logging and monitoring
+python-json-logger==2.0.7
+
+# Development tools
+black==23.12.1
+pylint==3.0.3
+pytest==7.4.3
+pytest-asyncio==0.21.1
+pytest-cov==4.1.0
+httpx==0.26.0

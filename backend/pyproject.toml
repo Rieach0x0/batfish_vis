@@ -1,0 +1,37 @@
+[project]
+name = "batfish-vis-backend"
+version = "1.0.0"
+description = "Batfish Visualization Backend API"
+requires-python = ">=3.11"
+
+[tool.black]
+line-length = 100
+target-version = ['py311']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+    \.eggs
+  | \.git
+  | \.venv
+  | venv
+  | build
+  | dist
+)/
+'''
+
+[tool.pylint.main]
+max-line-length = 100
+disable = [
+    "C0111",  # missing-docstring
+    "R0903",  # too-few-public-methods
+]
+
+[tool.pylint.format]
+max-line-length = 100
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
+addopts = "-v --cov=src --cov-report=html --cov-report=term"

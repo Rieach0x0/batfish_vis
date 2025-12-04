@@ -1,0 +1,602 @@
+openapi: 3.0.3
+info:
+  title: Batfish Visualization & Verification API
+  description: |
+    REST API for Batfish snapshot creation, topology visualization, and configuration verification.
+
+    This API integrates with Batfish v2025.07.07 container via pybatfish v2025.07.07.
+
+    **Features**:
+    - Snapshot creation from network configuration files
+    - Layer 3 topology query and visualization
+    - Configuration verification queries (reachability, ACL, routing)
+  version: 1.0.0
+  contact:
+    name: Batfish Vis Team
+servers:
+  - url: http://localhost:8000/api
+    description: Local development server
+  - url: https://batfish-vis.example.com/api
+    description: Production server
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      description: Check if API and Batfish container are healthy
+      operationId: healthCheck
+      tags:
+        - System
+      responses:
+        '200':
+          description: API and Batfish are healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "healthy"
+                  batfishVersion:
+                    type: string
+                    example: "v2025.07.07"
+                  apiVersion:
+                    type: string
+                    example: "1.0.0"
+        '503':
+          description: Batfish container is not available
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /snapshots:
+    get:
+      summary: List snapshots
+      description: Get list of all Batfish snapshots
+      operationId: listSnapshots
+      tags:
+        - Snapshots
+      responses:
+        '200':
+          description: List of snapshots
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  snapshots:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Snapshot'
+
+    post:
+      summary: Create snapshot
+      description: Upload network configuration files and create Batfish snapshot
+      operationId: createSnapshot
+      tags:
+        - Snapshots
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                snapshotName:
+                  type: string
+                  description: Unique snapshot name
+                  example: "snapshot-2025-11-21-14-30"
+                networkName:
+                  type: string
+                  description: Network name (logical grouping)
+                  example: "production-network"
+                  default: "default"
+                configFiles:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+                  description: Network configuration files
+              required:
+                - snapshotName
+                - configFiles
+      responses:
+        '201':
+          description: Snapshot created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Snapshot'
+        '400':
+          description: Invalid request (missing files, invalid name, etc.)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Snapshot with this name already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Batfish container unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /snapshots/{snapshotName}:
+    get:
+      summary: Get snapshot details
+      description: Get detailed information about a specific snapshot
+      operationId: getSnapshot
+      tags:
+        - Snapshots
+      parameters:
+        - name: snapshotName
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Snapshot name
+      responses:
+        '200':
+          description: Snapshot details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Snapshot'
+        '404':
+          description: Snapshot not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      summary: Delete snapshot
+      description: Delete a Batfish snapshot
+      operationId: deleteSnapshot
+      tags:
+        - Snapshots
+      parameters:
+        - name: snapshotName
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Snapshot name
+      responses:
+        '204':
+          description: Snapshot deleted successfully
+        '404':
+          description: Snapshot not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /topology/nodes:
+    get:
+      summary: Get topology nodes
+      description: Get all devices (nodes) in the topology from Batfish snapshot
+      operationId: getTopologyNodes
+      tags:
+        - Topology
+      parameters:
+        - name: snapshot
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Snapshot name
+      responses:
+        '200':
+          description: List of devices
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  snapshot:
+                    type: string
+                    example: "snapshot-2025-11-21-14-30"
+                  nodes:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Device'
+        '404':
+          description: Snapshot not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /topology/edges:
+    get:
+      summary: Get topology edges
+      description: Get all Layer 3 edges in the topology from Batfish snapshot
+      operationId: getTopologyEdges
+      tags:
+        - Topology
+      parameters:
+        - name: snapshot
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Snapshot name
+      responses:
+        '200':
+          description: List of edges
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  snapshot:
+                    type: string
+                    example: "snapshot-2025-11-21-14-30"
+                  edges:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Edge'
+        '404':
+          description: Snapshot not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /verification/reachability:
+    post:
+      summary: Run reachability verification
+      description: Execute Batfish reachability query to verify packet flow
+      operationId: verifyReachability
+      tags:
+        - Verification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                snapshot:
+                  type: string
+                  example: "snapshot-2025-11-21-14-30"
+                srcIp:
+                  type: string
+                  example: "10.0.1.1"
+                dstIp:
+                  type: string
+                  example: "10.0.2.1"
+                srcNode:
+                  type: string
+                  description: Optional source node constraint
+                  example: "core-router-1"
+              required:
+                - snapshot
+                - srcIp
+                - dstIp
+      responses:
+        '200':
+          description: Reachability verification result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationResult'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Snapshot not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /verification/acl:
+    post:
+      summary: Run ACL filter verification
+      description: Execute Batfish ACL filter verification
+      operationId: verifyACL
+      tags:
+        - Verification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                snapshot:
+                  type: string
+                  example: "snapshot-2025-11-21-14-30"
+                filterName:
+                  type: string
+                  example: "OUTSIDE-IN"
+                srcIp:
+                  type: string
+                  example: "192.0.2.100"
+                dstIp:
+                  type: string
+                  example: "10.0.1.50"
+                protocol:
+                  type: string
+                  example: "TCP"
+                  default: "TCP"
+              required:
+                - snapshot
+                - filterName
+                - srcIp
+                - dstIp
+      responses:
+        '200':
+          description: ACL verification result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationResult'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /verification/routing:
+    post:
+      summary: Run routing verification
+      description: Execute Batfish routing table verification
+      operationId: verifyRouting
+      tags:
+        - Verification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                snapshot:
+                  type: string
+                  example: "snapshot-2025-11-21-14-30"
+                nodes:
+                  type: array
+                  items:
+                    type: string
+                  description: Optional node filter
+                  example: ["core-router-1"]
+                network:
+                  type: string
+                  description: Optional network prefix filter
+                  example: "10.0.0.0/8"
+              required:
+                - snapshot
+      responses:
+        '200':
+          description: Routing verification result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationResult'
+
+components:
+  schemas:
+    Snapshot:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "snapshot-2025-11-21-14-30"
+        network:
+          type: string
+          example: "production-network"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2025-11-21T14:30:15Z"
+        status:
+          type: string
+          enum: [COMPLETE, FAILED, IN_PROGRESS]
+          example: "COMPLETE"
+        configFileCount:
+          type: integer
+          example: 15
+        deviceCount:
+          type: integer
+          example: 12
+        batfishVersion:
+          type: string
+          example: "v2025.07.07"
+        parseErrors:
+          type: array
+          items:
+            type: object
+            properties:
+              fileName:
+                type: string
+              errorMessage:
+                type: string
+              lineNumber:
+                type: integer
+                nullable: true
+      required:
+        - name
+        - network
+        - createdAt
+        - status
+        - configFileCount
+        - deviceCount
+        - batfishVersion
+
+    Device:
+      type: object
+      properties:
+        hostname:
+          type: string
+          example: "core-router-1"
+        vendor:
+          type: string
+          enum: [CISCO_IOS, CISCO_NX_OS, JUNIPER, ARISTA, PALO_ALTO, UNKNOWN]
+          example: "CISCO_IOS"
+        deviceType:
+          type: string
+          enum: [ROUTER, SWITCH, FIREWALL, LOAD_BALANCER, UNKNOWN]
+          example: "ROUTER"
+        model:
+          type: string
+          nullable: true
+          example: "Cisco ASR 9000"
+        osVersion:
+          type: string
+          nullable: true
+          example: "IOS XR 7.3.2"
+        interfaces:
+          type: array
+          items:
+            $ref: '#/components/schemas/Interface'
+        location:
+          type: string
+          nullable: true
+          example: "DC1-Rack-A-01"
+      required:
+        - hostname
+        - vendor
+        - interfaces
+
+    Interface:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "GigabitEthernet0/0/1"
+        active:
+          type: boolean
+          example: true
+        ipAddress:
+          type: string
+          nullable: true
+          example: "192.168.1.1/30"
+        vlan:
+          type: integer
+          nullable: true
+          example: 100
+        description:
+          type: string
+          nullable: true
+          example: "Link to distribution-switch-2"
+        bandwidth:
+          type: string
+          nullable: true
+          example: "1 Gbps"
+        mtu:
+          type: integer
+          nullable: true
+          example: 1500
+      required:
+        - name
+        - active
+
+    Edge:
+      type: object
+      properties:
+        sourceDevice:
+          type: string
+          example: "core-router-1"
+        sourceInterface:
+          type: string
+          example: "GigabitEthernet0/0/1"
+        destDevice:
+          type: string
+          example: "distribution-switch-2"
+        destInterface:
+          type: string
+          example: "TenGigabitEthernet1/0/24"
+        sourceIp:
+          type: string
+          nullable: true
+          example: "192.168.1.1"
+        destIp:
+          type: string
+          nullable: true
+          example: "192.168.1.2"
+      required:
+        - sourceDevice
+        - sourceInterface
+        - destDevice
+        - destInterface
+
+    VerificationResult:
+      type: object
+      properties:
+        queryId:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        queryType:
+          type: string
+          enum: [REACHABILITY, ACL_FILTER, ROUTING]
+          example: "REACHABILITY"
+        executedAt:
+          type: string
+          format: date-time
+          example: "2025-11-21T15:00:00Z"
+        parameters:
+          type: object
+          description: Query-specific parameters
+        status:
+          type: string
+          enum: [SUCCESS, FAILED, TIMEOUT]
+          example: "SUCCESS"
+        results:
+          type: array
+          items:
+            type: object
+          description: Query-specific results
+        errorMessage:
+          type: string
+          nullable: true
+        executionTimeMs:
+          type: integer
+          example: 2340
+      required:
+        - queryId
+        - queryType
+        - executedAt
+        - parameters
+        - status
+        - executionTimeMs
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "Snapshot not found"
+        message:
+          type: string
+          example: "The snapshot 'invalid-snapshot' does not exist"
+        code:
+          type: string
+          example: "SNAPSHOT_NOT_FOUND"
+      required:
+        - error
+        - message
+
+tags:
+  - name: System
+    description: System health and status
+  - name: Snapshots
+    description: Snapshot creation and management
+  - name: Topology
+    description: Network topology queries
+  - name: Verification
+    description: Configuration verification queries

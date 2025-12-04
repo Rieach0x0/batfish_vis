@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(tree:*)",
+      "Bash(dir:*)",
+      "Bash(git fetch:*)",
+      "Bash(pwsh:*)",
+      "Bash(powershell.exe -ExecutionPolicy Bypass -File .specify/scripts/powershell/create-new-feature.ps1 -Json -Number 1 -ShortName \"batfish-snapshot-topology\" \"ネットワークコンフィグのファイルが格納されたフォルダを自動または手動で読み込ませ、batfishと連携してスナップショットを作成すること。その際に、ネットワークトポロジーの表示および各種コンフィグの検証が行なえるようにすること。\")",
+      "Bash(powershell.exe -ExecutionPolicy Bypass -File .specify/scripts/powershell/create-new-feature.ps1 -Json -Number 2 -ShortName \"topology-hover-info\" \"ネットワークトポロジー表示した際、ネットワーク機器やリンクにマウスカーソルを当てるとその情報が表示されること。\")",
+      "Bash(powershell.exe -ExecutionPolicy Bypass -File .specify/scripts/powershell/setup-plan.ps1 -Json)",
+      "Bash(powershell.exe -ExecutionPolicy Bypass -File .specify/scripts/powershell/update-agent-context.ps1 -AgentType claude)",
+      "Bash(git checkout:*)",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "Bash(powershell.exe -ExecutionPolicy Bypass -File .specify/scripts/powershell/check-prerequisites.ps1 -Json)",
+      "Bash(powershell.exe -ExecutionPolicy Bypass -File .specify/scripts/powershell/check-prerequisites.ps1 -Json -RequireTasks -IncludeTasks)",
+      "Bash(git rev-parse:*)",
+      "Bash(test:*)",
+      "Bash(powershell.exe -ExecutionPolicy Bypass -File \"D:\\batfish_vis\\sync_snapshot_service_fix.ps1\")",
+      "Bash(wsl bash:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
