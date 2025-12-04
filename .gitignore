@@ -53,9 +53,10 @@ yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
 pnpm-debug.log*
-package-lock.json
-yarn.lock
-pnpm-lock.yaml
+# Lock files should be committed for reproducible builds
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
 
 # JavaScript build outputs
 dist/
