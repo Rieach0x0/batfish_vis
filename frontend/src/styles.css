@@ -454,6 +454,13 @@ body {
   border: 2px solid white;
 }
 
+/* US2 - T046: Selected node indicator */
+.nodes circle.selected {
+  stroke: var(--primary-color) !important;
+  stroke-width: 4 !important;
+  filter: drop-shadow(0 0 8px rgba(37, 99, 235, 0.6));
+}
+
 .error-state {
   padding: 2rem;
   text-align: center;

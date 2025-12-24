@@ -17,12 +17,14 @@ import topologyService from '../services/topologyService.js';
  * @param {HTMLElement} container - Container element for visualization
  * @param {string} snapshotName - Snapshot name to visualize
  * @param {string} networkName - Network name (default: "default")
+ * @param {Object} nodeDetailPanel - NodeDetailPanel instance (optional)
  * @returns {Object} Component API with methods
  */
-export function createTopologyVisualization(container, snapshotName, networkName = 'default') {
+export function createTopologyVisualization(container, snapshotName, networkName = 'default', nodeDetailPanel = null) {
   let svg, g, simulation;
   let nodes = [], links = [];
   let tooltip;
+  let dragStart = null; // Track drag start for click detection
 
   const width = container.clientWidth || 800;
   const height = container.clientHeight || 600;
@@ -181,7 +183,8 @@ export function createTopologyVisualization(container, snapshotName, networkName
       .attr('stroke', '#fff')
       .attr('stroke-width', 2)
       .on('mouseover', handleNodeMouseOver)
-      .on('mouseout', handleMouseOut);
+      .on('mouseout', handleMouseOut)
+      .on('click', handleNodeClick);
 
     // Node labels
     node.append('text')
@@ -278,6 +281,55 @@ export function createTopologyVisualization(container, snapshotName, networkName
     tooltip.transition()
       .duration(200)
       .style('opacity', 0);
+  }
+
+  /**
+   * Handle node click event (Feature 003: Node Detail Panel).
+   * Opens the detail panel if the node wasn't dragged.
+   * US2 - T044: Toggle close if clicking the same node again.
+   * US2 - T046, T047: Add/remove selected visual indicator.
+   */
+  function handleNodeClick(event, d) {
+    // Check if this was a drag operation
+    if (event.defaultPrevented) {
+      return; // This was a drag, not a click
+    }
+
+    // Open detail panel if available
+    if (nodeDetailPanel) {
+      // US2 - T044: Check if clicking the same node that's already open
+      if (nodeDetailPanel.state.isOpen && nodeDetailPanel.state.currentNode === d.hostname) {
+        // Toggle close
+        nodeDetailPanel.close();
+        // US2 - T046: Remove selected indicator
+        removeSelectedIndicator();
+      } else {
+        // US2 - T047: Remove old selected indicator and add new one
+        removeSelectedIndicator();
+        addSelectedIndicator(d.hostname);
+        // Open panel for this node (or switch to different node)
+        nodeDetailPanel.open(d.hostname, snapshotName, networkName);
+      }
+    }
+  }
+
+  /**
+   * Add selected indicator to a node (US2 - T046).
+   * @param {string} hostname - Hostname of node to select
+   */
+  function addSelectedIndicator(hostname) {
+    g.selectAll('.nodes g')
+      .filter(d => d.hostname === hostname)
+      .select('circle')
+      .classed('selected', true);
+  }
+
+  /**
+   * Remove selected indicator from all nodes (US2 - T046, T047).
+   */
+  function removeSelectedIndicator() {
+    g.selectAll('.nodes g circle')
+      .classed('selected', false);
   }
 
   /**
@@ -395,6 +447,11 @@ export function createTopologyVisualization(container, snapshotName, networkName
 
   // Initialize on creation
   init();
+
+  // US3 - T064: Wire up onClose callback to remove selected indicator when panel closes
+  if (nodeDetailPanel) {
+    nodeDetailPanel.onClose = removeSelectedIndicator;
+  }
 
   // Return public API
   return {

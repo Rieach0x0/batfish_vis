@@ -4,6 +4,8 @@ Auto-generated from all feature plans. Last updated: 2025-11-21
 
 ## Active Technologies
 - Batfish内蔵ストレージ (スナップショットデータ), ファイルシステム (設定ファイル一時保存) (001-batfish-snapshot-topology)
+- Python 3.11 (backend), JavaScript ES2022 (frontend) (003-node-detail-panel)
+- Batfish internal storage (snapshot data), filesystem (temporary config files) (003-node-detail-panel)
 
 - Python 3.11 (バックエンド), JavaScript ES2022 (フロントエンド) (002-topology-hover-info)
 
@@ -24,6 +26,7 @@ cd src; pytest; ruff check .
 Python 3.11 (バックエンド), JavaScript ES2022 (フロントエンド): Follow standard conventions
 
 ## Recent Changes
+- 003-node-detail-panel: Added Python 3.11 (backend), JavaScript ES2022 (frontend)
 - 001-batfish-snapshot-topology: Added Python 3.11 (バックエンド), JavaScript ES2022 (フロントエンド)
 
 - 002-topology-hover-info: Added Python 3.11 (バックエンド), JavaScript ES2022 (フロントエンド)

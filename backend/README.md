@@ -79,6 +79,10 @@ Once running, visit:
 - **GET** `/api/topology/nodes` - Get all devices in snapshot
   - Query: `snapshot` (required), `network` (optional)
   - Returns: Array of `Device` objects
+- **GET** `/api/topology/nodes/{hostname}/details` - Get detailed node information (Feature 003)
+  - Path: `hostname` (required)
+  - Query: `snapshot` (required), `network` (optional)
+  - Returns: `NodeDetail` object with device metadata, interfaces, and IP addresses
 - **GET** `/api/topology/edges` - Get Layer 3 edges
   - Query: `snapshot` (required), `network` (optional)
   - Returns: Array of `Edge` objects
@@ -99,6 +103,37 @@ Once running, visit:
 - **POST** `/api/verification/routing` - Query routing tables
   - Body: `{ snapshot, network?, nodes?, network_filter? }`
   - Returns: `VerificationResult` with route entries
+
+### Data Models
+
+#### NodeDetail (Feature 003)
+```python
+{
+  "hostname": str,              # Device hostname
+  "device_type": str | None,    # Device type (router, switch, firewall, etc.)
+  "vendor": str | None,         # Vendor name (Cisco, Juniper, etc.)
+  "model": str | None,          # Hardware model
+  "os_version": str | None,     # Operating system version
+  "status": str,                # Device status (active, inactive, unknown)
+  "interfaces": [               # List of interfaces
+    {
+      "name": str,              # Interface name
+      "active": bool,           # Interface status
+      "ip_addresses": [str],    # List of IP addresses (CIDR format)
+      "description": str | None,
+      "vlan": int | None,
+      "bandwidth_mbps": float | None,
+      "mtu": int | None
+    }
+  ],
+  "interface_count": int,       # Total number of interfaces
+  "metadata": {
+    "snapshot_name": str,
+    "network_name": str,
+    "last_updated": str         # ISO 8601 timestamp
+  }
+}
+```
 
 ## Key Technologies
 

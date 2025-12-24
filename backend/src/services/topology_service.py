@@ -271,3 +271,131 @@ class TopologyService:
             return str(primary_address.netmask)
 
         return None
+
+    async def get_node_details(
+        self,
+        snapshot_name: str,
+        hostname: str,
+        network_name: str = "default"
+    ):
+        """
+        Get comprehensive details for a specific network node.
+
+        Aggregates node properties and interface data from Batfish queries.
+        Derives operational status from interface active states.
+
+        Args:
+            snapshot_name: Batfish snapshot name
+            hostname: Device hostname
+            network_name: Network name (default: "default")
+
+        Returns:
+            NodeDetail object with complete node information
+
+        Raises:
+            KeyError: If node not found in snapshot
+            BatfishException: If Batfish query fails
+        """
+        from ..models.node_detail import NodeDetail, Interface as NodeInterface, DeviceMetadata
+        from datetime import datetime
+        import math
+
+        def nan_to_none(value):
+            """Convert pandas NaN to None for Pydantic validation."""
+            if value is None:
+                return None
+            if isinstance(value, float) and math.isnan(value):
+                return None
+            return value
+
+        try:
+            logger.info(
+                f"Node detail request initiated: hostname={hostname}, "
+                f"snapshot={snapshot_name}, network={network_name}"
+            )
+
+            self.bf_session.set_network(network_name)
+            self.bf_session.set_snapshot(snapshot_name)
+
+            # Query node properties
+            logger.debug(f"Querying node properties for '{hostname}'")
+            nodes_df = self.bf.q.nodeProperties(nodes=hostname).answer().frame()
+
+            if nodes_df.empty:
+                logger.warning(
+                    f"Node not found: hostname={hostname}, snapshot={snapshot_name}, network={network_name}"
+                )
+                raise KeyError(f"Node '{hostname}' not found in snapshot '{snapshot_name}'")
+
+            node_row = nodes_df.iloc[0]
+
+            # Query interface properties for this node
+            logger.debug(f"Querying interface properties for '{hostname}'")
+            interfaces_df = self.bf.q.interfaceProperties(nodes=hostname).answer().frame()
+            logger.debug(f"Found {len(interfaces_df)} interfaces for '{hostname}'")
+
+            # Map interfaces to NodeInterface model
+            interfaces = []
+            for _, iface_row in interfaces_df.iterrows():
+                iface_name = iface_row.get('Interface', {})
+                if hasattr(iface_name, 'interface'):
+                    iface_name_str = iface_name.interface
+                else:
+                    iface_name_str = str(iface_name)
+
+                # Extract IP addresses
+                ip_addresses = self._extract_ip_addresses(iface_row)
+
+                interface = NodeInterface(
+                    name=iface_name_str,
+                    active=iface_row.get('Active', False),
+                    ip_addresses=ip_addresses,
+                    description=nan_to_none(iface_row.get('Description', None)),
+                    vlan=nan_to_none(iface_row.get('Access_VLAN', None)),
+                    bandwidth_mbps=nan_to_none(iface_row.get('Bandwidth', None)),
+                    mtu=nan_to_none(iface_row.get('MTU', None))
+                )
+                interfaces.append(interface)
+
+            # Derive status from interface states
+            status = "unknown"
+            if interfaces:
+                status = "active" if any(iface.active for iface in interfaces) else "inactive"
+
+            # Build metadata
+            metadata = DeviceMetadata(
+                snapshot_name=snapshot_name,
+                last_updated=datetime.utcnow(),
+                config_file_path=None  # Batfish doesn't expose this directly
+            )
+
+            # Build NodeDetail response
+            node_detail = NodeDetail(
+                hostname=hostname,
+                device_type=node_row.get('Device_Type', None),
+                vendor=node_row.get('Vendor', None),
+                model=node_row.get('Model', None),
+                os_version=None,  # Not directly available from nodeProperties
+                config_format=node_row.get('Configuration_Format', None),
+                status=status,
+                interface_count=len(interfaces),
+                interfaces=interfaces,
+                metadata=metadata
+            )
+
+            logger.info(
+                f"Node detail request completed: hostname={hostname}, "
+                f"snapshot={snapshot_name}, interface_count={node_detail.interface_count}, "
+                f"status={status}, vendor={node_detail.vendor}, device_type={node_detail.device_type}"
+            )
+
+            return node_detail
+
+        except KeyError:
+            raise
+        except Exception as e:
+            logger.error(
+                f"Node detail request failed: hostname={hostname}, "
+                f"snapshot={snapshot_name}, error={str(e)}"
+            )
+            raise BatfishException(f"Failed to retrieve node details: {str(e)}")

@@ -178,3 +178,70 @@ async def get_complete_topology(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Unexpected error: {str(e)}"
         )
+
+
+@router.get("/nodes/{hostname}/details")
+async def get_node_details_endpoint(
+    hostname: str,
+    snapshot: str = Query(..., description="Snapshot name"),
+    network: str = Query(default="default", description="Network name")
+):
+    """
+    Get comprehensive details for a specific network node.
+
+    Returns hostname, device metadata, interfaces, and IP addresses.
+    All data sourced from Batfish snapshot analysis.
+
+    Args:
+        hostname: Device hostname
+        snapshot: Snapshot name to query
+        network: Network name (default: "default")
+
+    Returns:
+        NodeDetail object with:
+        - hostname, device_type, vendor, model, os_version, config_format
+        - status (derived from interface states)
+        - interfaces (name, active, ip_addresses, description, vlan, bandwidth, mtu)
+        - metadata (snapshot_name, last_updated, config_file_path)
+
+    Raises:
+        HTTPException 404: Node not found in snapshot
+        HTTPException 500: Batfish service error
+    """
+    try:
+        logger.info(
+            f"Getting node details for '{hostname}' in snapshot '{snapshot}', network '{network}'"
+        )
+
+        node_detail = await topology_service.get_node_details(snapshot, hostname, network)
+
+        logger.info(
+            f"Successfully retrieved node details for '{hostname}' "
+            f"({node_detail.interface_count} interfaces)"
+        )
+
+        return node_detail
+
+    except KeyError as e:
+        # Node not found in snapshot
+        logger.warning(f"Node not found: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Node '{hostname}' not found in snapshot '{snapshot}'"
+        )
+
+    except BatfishException as e:
+        # Batfish service error (container down, query failed, etc.)
+        logger.error(f"Batfish service error getting node details: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch node details from Batfish: {str(e)}"
+        )
+
+    except Exception as e:
+        # Unexpected error
+        logger.error(f"Unexpected error getting node details for '{hostname}': {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Unexpected error retrieving node details: {str(e)}"
+        )

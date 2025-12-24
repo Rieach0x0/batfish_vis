@@ -25,16 +25,7 @@ const snapshotService = {
       throw new Error('Snapshot name is required');
     }
 
-    console.log('[DEBUG] createSnapshot called with:', {
-      snapshotName,
-      networkName,
-      configFiles: configFiles,
-      fileCount: configFiles ? configFiles.length : 0,
-      fileType: configFiles ? typeof configFiles : 'undefined'
-    });
-
     if (!configFiles || configFiles.length === 0) {
-      console.error('[ERROR] No config files provided');
       throw new Error('At least one configuration file is required');
     }
 
@@ -45,33 +36,12 @@ const snapshotService = {
 
     // Add all configuration files
     for (let i = 0; i < configFiles.length; i++) {
-      const file = configFiles[i];
-      console.log(`[DEBUG] Adding file ${i + 1}:`, {
-        name: file.name,
-        size: file.size,
-        type: file.type,
-        lastModified: file.lastModified
-      });
-      formData.append('configFiles', file);
+      formData.append('configFiles', configFiles[i]);
     }
-
-    // Log FormData contents
-    console.log('[DEBUG] FormData entries:');
-    for (let pair of formData.entries()) {
-      if (pair[1] instanceof File) {
-        console.log(`  ${pair[0]}: File(${pair[1].name}, ${pair[1].size} bytes)`);
-      } else {
-        console.log(`  ${pair[0]}: ${pair[1]}`);
-      }
-    }
-
-    console.log(`Creating snapshot: ${snapshotName} with ${configFiles.length} files`);
 
     try {
       // Use postForm for multipart/form-data
       const snapshot = await apiClient.postForm('/snapshots', formData);
-
-      console.log('Snapshot created successfully', snapshot);
       return snapshot;
 
     } catch (error) {
@@ -91,8 +61,6 @@ const snapshotService = {
     try {
       const params = network ? { network } : null;
       const response = await apiClient.get('/snapshots', params);
-
-      console.log(`Listed ${response.snapshots.length} snapshots`);
       return response.snapshots;
 
     } catch (error) {
@@ -116,8 +84,6 @@ const snapshotService = {
 
     try {
       const snapshot = await apiClient.get(`/snapshots/${snapshotName}`, { network });
-
-      console.log(`Retrieved snapshot: ${snapshotName}`, snapshot);
       return snapshot;
 
     } catch (error) {
@@ -141,9 +107,6 @@ const snapshotService = {
 
     try {
       await apiClient.delete(`/snapshots/${snapshotName}?network=${network}`);
-
-      console.log(`Deleted snapshot: ${snapshotName}`);
-
     } catch (error) {
       console.error(`Failed to delete snapshot: ${snapshotName}`, error);
       throw error;

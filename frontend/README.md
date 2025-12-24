@@ -45,6 +45,12 @@ The application will be available at `http://localhost:5173`
   - Node dragging
   - Device detail inspection
   - Hover information display (Feature 002)
+  - **Node detail panel** (Feature 003):
+    - Click node to view detailed information
+    - Device metadata (vendor, model, OS version)
+    - Interface list with IP addresses
+    - Switch between nodes without closing panel
+    - Multiple close methods (button, backdrop, ESC key)
   - SVG/PNG export
 - **Configuration Verification**: Execute Batfish verification queries
   - Reachability analysis with flow traces
@@ -60,6 +66,7 @@ frontend/
 │   │   ├── SnapshotUpload.js
 │   │   ├── SnapshotManager.js
 │   │   ├── TopologyVisualization.js
+│   │   ├── NodeDetailPanel.js      # (Feature 003)
 │   │   └── VerificationPanel.js
 │   ├── services/         # API client services
 │   │   ├── apiClient.js
@@ -132,8 +139,25 @@ The application follows a modular component-based architecture:
 - Interactive features: zoom, pan, drag
 - Node hover displays device info (hostname, vendor, type, interfaces)
 - Link hover displays connection info (source/target, interfaces, IPs)
+- Node click opens detail panel (Feature 003)
 - Export to SVG/PNG
-- **API**: `createTopologyVisualization(container, snapshotName, networkName)`
+- **API**: `createTopologyVisualization(container, snapshotName, networkName, nodeDetailPanel?)`
+
+**NodeDetailPanel** (`src/components/NodeDetailPanel.js`) - Feature 003
+- Displays comprehensive node information when clicked
+- Device metadata: hostname, vendor, model, OS version, status
+- Interface list with IP addresses, description, VLAN, bandwidth, MTU
+- Switch between nodes by clicking different nodes (panel stays open)
+- Toggle close by clicking same node again
+- Multiple close methods: close button, backdrop click, ESC key
+- Loading state with spinner during data fetch
+- Error handling with user-friendly messages
+- Smooth slide-in/out animations
+- Selected node visual indicator (blue border + shadow)
+- AbortController to cancel pending requests when switching nodes
+- 100ms debounce for rapid clicks
+- **API**: `new NodeDetailPanel(container, options?)`
+  - `options.onClose`: Callback function called when panel closes
 
 **VerificationPanel** (`src/components/VerificationPanel.js`)
 - Query type selector (Reachability / ACL / Routing)
@@ -164,6 +188,7 @@ The application follows a modular component-based architecture:
 - `getEdges(snapshot, network?)` - Get Layer 3 links
 - `getInterfaces(snapshot, network?, hostname?)` - Get interfaces
 - `getTopology(snapshot, network?)` - Get complete graph
+- `fetchNodeDetails(hostname, snapshot, network?)` - Get detailed node info (Feature 003)
 
 **verificationService** (`src/services/verificationService.js`)
 - `verifyReachability(snapshot, srcIp, dstIp, network?, srcNode?)`

@@ -164,14 +164,7 @@ export function createSnapshotUpload(container, onSnapshotCreated = null) {
 
   // Handle file selection
   function handleFileSelection(event) {
-    console.log('[DEBUG] handleFileSelection called');
-    console.log('[DEBUG] event.target.id:', event.target.id);
-    console.log('[DEBUG] event.target.files:', event.target.files);
-    console.log('[DEBUG] event.target.files.length:', event.target.files ? event.target.files.length : 'null');
-
     selectedFiles = Array.from(event.target.files);
-    console.log('[DEBUG] selectedFiles after Array.from:', selectedFiles);
-    console.log('[DEBUG] selectedFiles.length:', selectedFiles.length);
 
     const fileCount = container.querySelector('#file-count');
 
@@ -228,13 +221,6 @@ export function createSnapshotUpload(container, onSnapshotCreated = null) {
       return;
     }
 
-    // Debug: Log submission details
-    console.log('[DEBUG] Form submission starting');
-    console.log('[DEBUG] snapshotName:', snapshotName);
-    console.log('[DEBUG] networkName:', networkName);
-    console.log('[DEBUG] selectedFiles count:', selectedFiles.length);
-    console.log('[DEBUG] selectedFiles:', selectedFiles);
-
     // Start upload
     isUploading = true;
     showProgress(true);
@@ -242,13 +228,11 @@ export function createSnapshotUpload(container, onSnapshotCreated = null) {
     showStatus('Creating snapshot...', 'info');
 
     try {
-      console.log('[DEBUG] Calling snapshotService.createSnapshot...');
       const snapshot = await snapshotService.createSnapshot(
         snapshotName,
         networkName,
         selectedFiles
       );
-      console.log('[DEBUG] snapshotService.createSnapshot returned:', snapshot);
 
       // Success
       showProgress(false);

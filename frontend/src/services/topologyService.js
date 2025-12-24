@@ -75,6 +75,26 @@ const topologyService = {
     });
 
     return await apiClient.get(`/topology?${params.toString()}`);
+  },
+
+  /**
+   * Get detailed information for a specific network node.
+   *
+   * Retrieves comprehensive details including hostname, device metadata,
+   * interfaces, IP addresses, and operational status.
+   *
+   * @param {string} hostname - Node hostname
+   * @param {string} snapshotName - Snapshot name
+   * @param {string} networkName - Network name (default: "default")
+   * @returns {Promise<Object>} Node detail object
+   */
+  async fetchNodeDetails(hostname, snapshotName, networkName = 'default') {
+    const params = new URLSearchParams({
+      snapshot: snapshotName,
+      network: networkName
+    });
+
+    return await apiClient.get(`/topology/nodes/${encodeURIComponent(hostname)}/details?${params.toString()}`);
   }
 };
 

@@ -8,6 +8,7 @@ import { createSnapshotUpload } from './components/SnapshotUpload.js';
 import { createSnapshotManager } from './components/SnapshotManager.js';
 import { createTopologyVisualization } from './components/TopologyVisualization.js';
 import { createVerificationPanel } from './components/VerificationPanel.js';
+import { NodeDetailPanel } from './components/NodeDetailPanel.js';
 import apiClient from './services/apiClient.js';
 
 /**
@@ -59,6 +60,9 @@ export function initApp() {
       <footer class="app-footer">
         <p>Batfish v2025.07.07 | API v1.0.0 | Constitutional Compliance: ✓</p>
       </footer>
+
+      <!-- Node Detail Panel Container -->
+      <div id="detail-panel-container"></div>
     </div>
   `;
 
@@ -67,11 +71,16 @@ export function initApp() {
   const snapshotUploadContainer = document.getElementById('snapshot-upload-container');
   const topologyCanvas = document.getElementById('topology-canvas');
   const verificationContainer = document.getElementById('verification-container');
+  const detailPanelContainer = document.getElementById('detail-panel-container');
 
   let snapshotManager = null;
   let topologyVisualization = null;
   let verificationPanel = null;
+  let nodeDetailPanel = null;
   let activeSnapshot = null;
+
+  // Create NodeDetailPanel (Feature 003)
+  nodeDetailPanel = new NodeDetailPanel(detailPanelContainer);
 
   // Create SnapshotManager
   snapshotManager = createSnapshotManager(
@@ -87,7 +96,6 @@ export function initApp() {
 
   // Handle snapshot creation
   function handleSnapshotCreated(snapshot) {
-    console.log('Snapshot created, refreshing list', snapshot);
     if (snapshotManager) {
       snapshotManager.refresh();
     }
@@ -100,7 +108,6 @@ export function initApp() {
     const topologyContainer = document.getElementById('topology-container');
 
     if (snapshot) {
-      console.log('Snapshot selected', snapshot);
       activeSnapshot = snapshot;
 
       snapshotDetails.innerHTML = `
@@ -164,11 +171,12 @@ export function initApp() {
       topologyVisualization.destroy();
     }
 
-    // Create new visualization
+    // Create new visualization (with NodeDetailPanel for Feature 003)
     topologyVisualization = createTopologyVisualization(
       topologyCanvas,
       snapshot.name,
-      snapshot.network
+      snapshot.network,
+      nodeDetailPanel
     );
 
     // Setup export buttons

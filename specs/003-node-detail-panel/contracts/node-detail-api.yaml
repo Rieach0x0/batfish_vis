@@ -1,0 +1,386 @@
+openapi: 3.1.0
+info:
+  title: Node Detail Panel API Contract
+  description: |
+    API contract for the Node Detail Panel feature. Defines the endpoint
+    for fetching comprehensive node details including hostname, interfaces,
+    IP addresses, and device metadata.
+
+    This contract extends the existing Batfish Visualization API with a new
+    aggregated endpoint that combines node properties and interface data.
+  version: 1.0.0
+  contact:
+    name: batfish_vis Development Team
+
+servers:
+  - url: http://localhost:8000/api
+    description: Local development server
+  - url: http://localhost:8000/api
+    description: Production server (same for local deployment)
+
+tags:
+  - name: topology
+    description: Network topology and node operations
+
+paths:
+  /topology/nodes/{hostname}/details:
+    get:
+      summary: Get detailed information for a specific network node
+      description: |
+        Retrieves comprehensive details for a network device including:
+        - Device metadata (hostname, vendor, model, OS version, type)
+        - All interfaces with IP addresses, status, and properties
+        - Operational status derived from interface states
+
+        This endpoint aggregates data from multiple Batfish queries and
+        caches results for 5 minutes to optimize performance.
+      operationId: getNodeDetails
+      tags:
+        - topology
+      parameters:
+        - name: hostname
+          in: path
+          required: true
+          description: Hostname of the network device (case-sensitive)
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 255
+            example: router-01
+        - name: snapshot
+          in: query
+          required: true
+          description: Batfish snapshot name containing the network configuration
+          schema:
+            type: string
+            minLength: 1
+            example: prod_network_2025-12-23
+        - name: network
+          in: query
+          required: false
+          description: Network name within the snapshot (defaults to "default")
+          schema:
+            type: string
+            default: default
+            example: default
+      responses:
+        '200':
+          description: Successfully retrieved node details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NodeDetail'
+              examples:
+                router_with_interfaces:
+                  summary: Router with multiple configured interfaces
+                  value:
+                    hostname: router-01
+                    device_type: router
+                    vendor: Cisco
+                    model: ISR4451
+                    os_version: IOS XE 17.3.4a
+                    config_format: CISCO_IOS
+                    status: active
+                    interface_count: 12
+                    interfaces:
+                      - name: GigabitEthernet0/0/0
+                        active: true
+                        ip_addresses:
+                          - 192.168.1.1/24
+                        description: Uplink to core
+                        vlan: null
+                        bandwidth_mbps: 1000
+                        mtu: 1500
+                      - name: GigabitEthernet0/0/1
+                        active: false
+                        ip_addresses: []
+                        description: null
+                        vlan: null
+                        bandwidth_mbps: null
+                        mtu: 1500
+                    metadata:
+                      snapshot_name: prod_network_2025-12-23
+                      last_updated: '2025-12-23T10:15:32Z'
+                      config_file_path: /snapshots/prod_network/configs/router-01.cfg
+
+                switch_no_ips:
+                  summary: Switch with interfaces but no IP addresses
+                  value:
+                    hostname: switch-access-01
+                    device_type: switch
+                    vendor: Arista
+                    model: DCS-7050SX
+                    os_version: EOS 4.28.3M
+                    config_format: ARISTA
+                    status: active
+                    interface_count: 48
+                    interfaces:
+                      - name: Ethernet1
+                        active: true
+                        ip_addresses: []
+                        description: Access port - VLAN 100
+                        vlan: 100
+                        bandwidth_mbps: 10000
+                        mtu: 9214
+                    metadata:
+                      snapshot_name: prod_network_2025-12-23
+                      last_updated: '2025-12-23T10:15:32Z'
+                      config_file_path: /snapshots/prod_network/configs/switch-access-01.cfg
+
+                unknown_metadata:
+                  summary: Device with unknown vendor/model metadata
+                  value:
+                    hostname: legacy-device-01
+                    device_type: unknown
+                    vendor: null
+                    model: null
+                    os_version: null
+                    config_format: null
+                    status: unknown
+                    interface_count: 0
+                    interfaces: []
+                    metadata:
+                      snapshot_name: prod_network_2025-12-23
+                      last_updated: '2025-12-23T10:15:32Z'
+                      config_file_path: null
+
+        '400':
+          description: Bad request - invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: Snapshot name is required
+                status_code: 400
+                error_type: ValidationError
+
+        '404':
+          description: Node not found in the specified snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: Node 'router-01' not found in snapshot 'prod_network_2025-12-23'
+                status_code: 404
+                error_type: NodeNotFoundError
+
+        '500':
+          description: Internal server error (Batfish unavailable, query failure)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: Failed to query Batfish for node details
+                status_code: 500
+                error_type: BatfishServiceError
+
+        '503':
+          description: Batfish service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: Batfish container is not running or unreachable
+                status_code: 503
+                error_type: ServiceUnavailableError
+
+components:
+  schemas:
+    NodeDetail:
+      type: object
+      required:
+        - hostname
+        - status
+        - interface_count
+        - interfaces
+        - metadata
+      properties:
+        hostname:
+          type: string
+          description: Network device hostname
+          minLength: 1
+          maxLength: 255
+          example: router-01
+
+        device_type:
+          type: string
+          nullable: true
+          description: Type of network device
+          enum:
+            - router
+            - switch
+            - firewall
+            - host
+            - unknown
+          example: router
+
+        vendor:
+          type: string
+          nullable: true
+          description: Device manufacturer/vendor
+          maxLength: 100
+          example: Cisco
+
+        model:
+          type: string
+          nullable: true
+          description: Device hardware model
+          maxLength: 100
+          example: ISR4451
+
+        os_version:
+          type: string
+          nullable: true
+          description: Operating system version
+          maxLength: 100
+          example: IOS XE 17.3.4a
+
+        config_format:
+          type: string
+          nullable: true
+          description: Configuration file format detected by Batfish
+          enum:
+            - CISCO_IOS
+            - CISCO_NX_OS
+            - JUNIPER
+            - ARISTA
+            - PALO_ALTO
+            - null
+          example: CISCO_IOS
+
+        status:
+          type: string
+          description: Operational status (derived from interface states)
+          enum:
+            - active
+            - inactive
+            - unknown
+          example: active
+
+        interface_count:
+          type: integer
+          description: Total number of interfaces on the device
+          minimum: 0
+          example: 12
+
+        interfaces:
+          type: array
+          description: Array of network interfaces
+          items:
+            $ref: '#/components/schemas/Interface'
+
+        metadata:
+          $ref: '#/components/schemas/DeviceMetadata'
+
+    Interface:
+      type: object
+      required:
+        - name
+        - active
+        - ip_addresses
+      properties:
+        name:
+          type: string
+          description: Interface name/identifier
+          minLength: 1
+          maxLength: 100
+          example: GigabitEthernet0/0/0
+
+        active:
+          type: boolean
+          description: Whether interface is administratively up
+          example: true
+
+        ip_addresses:
+          type: array
+          description: IP addresses assigned to interface (CIDR notation)
+          items:
+            type: string
+            pattern: '^(\d{1,3}\.){3}\d{1,3}/\d{1,2}$|^([0-9a-fA-F:]+)/\d{1,3}$'
+            example: 192.168.1.1/24
+          example:
+            - 192.168.1.1/24
+            - 10.0.0.1/30
+
+        description:
+          type: string
+          nullable: true
+          description: Interface description or comment
+          maxLength: 255
+          example: Uplink to core switch
+
+        vlan:
+          type: integer
+          nullable: true
+          description: VLAN ID if applicable
+          minimum: 1
+          maximum: 4094
+          example: 100
+
+        bandwidth_mbps:
+          type: integer
+          nullable: true
+          description: Interface bandwidth in Mbps
+          minimum: 0
+          example: 1000
+
+        mtu:
+          type: integer
+          nullable: true
+          description: Maximum transmission unit (bytes)
+          minimum: 68
+          maximum: 9216
+          example: 1500
+
+    DeviceMetadata:
+      type: object
+      required:
+        - snapshot_name
+        - last_updated
+      properties:
+        snapshot_name:
+          type: string
+          description: Batfish snapshot identifier
+          minLength: 1
+          example: prod_network_2025-12-23
+
+        last_updated:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp of snapshot initialization
+          example: '2025-12-23T10:15:32Z'
+
+        config_file_path:
+          type: string
+          nullable: true
+          description: Path to device configuration file in snapshot
+          example: /snapshots/prod_network/configs/router-01.cfg
+
+    Error:
+      type: object
+      required:
+        - detail
+        - status_code
+      properties:
+        detail:
+          type: string
+          description: Human-readable error message
+          example: Node 'router-01' not found in snapshot
+
+        status_code:
+          type: integer
+          description: HTTP status code
+          example: 404
+
+        error_type:
+          type: string
+          description: Machine-readable error type
+          example: NodeNotFoundError
+
+  securitySchemes: {}
+
+security: []
